@@ -16,6 +16,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+import os
 from .views import (
     api_root, UserViewSet, TeamViewSet, ActivityViewSet,
     LeaderboardViewSet, WorkoutViewSet
@@ -29,8 +32,29 @@ router.register(r'activities', ActivityViewSet, basename='activity')
 router.register(r'leaderboard', LeaderboardViewSet, basename='leaderboard')
 router.register(r'workouts', WorkoutViewSet, basename='workout')
 
+# Custom API root view that returns Codespace-aware URLs
+@api_view(['GET'])
+def codespace_api_root(request):
+    """
+    API root that returns URLs with Codespace base URL
+    """
+    codespace_name = os.getenv('CODESPACE_NAME')
+    if codespace_name:
+        base_url = f'https://{codespace_name}-8000.app.github.dev'
+    else:
+        # Fallback to request's base URL for local development
+        base_url = request.build_absolute_uri('/').rstrip('/')
+    
+    return Response({
+        'users': f'{base_url}/api/users/',
+        'teams': f'{base_url}/api/teams/',
+        'activities': f'{base_url}/api/activities/',
+        'leaderboard': f'{base_url}/api/leaderboard/',
+        'workouts': f'{base_url}/api/workouts/',
+    })
+
 urlpatterns = [
-    path('', api_root, name='api-root'),
+    path('', codespace_api_root, name='api-root'),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
 ]
